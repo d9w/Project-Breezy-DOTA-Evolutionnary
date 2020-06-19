@@ -80,20 +80,17 @@ end
 function compute_distances(indivs::Array{Indiv_dist})
     size = length(indivs)
     len = length(indivs[1].actions)
-    println("Computing distances")
     for i in 1:size
         for j in 1:i
             if i != j
                 indiv_i = indivs[i]
                 indiv_j = indivs[j]
                 distance = sum(indiv_i.actions .!= indiv_j.actions)/len
-                println(distance)
                 indiv_i.distances[j] = distance
                 indiv_j.distances[i] = distance
             end
         end
     end
-    println("Distances computed")
 end
 
 function select_diverse(indivs::Array{Individual, 1}, keep_top=10)
@@ -109,8 +106,9 @@ function select_diverse(indivs::Array{Individual, 1}, keep_top=10)
     # println("Group size: ", length(pop))
 
     compute_distances(pop)
-
     sort!(pop, by= i -> sum(i.distances), rev=true)
+    println("Distances: ")
+    println([sum(pop[i].distances) for i in 1:keep_top])
 
     pop = pop[1:keep_top]
     new_pop = getfield.(pop, :indiv)

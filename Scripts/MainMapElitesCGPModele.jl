@@ -52,12 +52,11 @@ end
 args = parse_args(ARGS, s)
 cfg = get_config(args["cfg"])
 
-path_to_dota_simulator = args["simulator"]
-pushfirst!(PyVector(pyimport("sys")."path"), path_to_Dota_Simulator)
+pushfirst!(PyVector(pyimport("sys")."path"), args["simulator"])
 include("../Scripts/Julia_interface.jl")
 
 # add to cfg the number of input(i.e nb of feature) and output
-cfg["n_in"] = 310
+cfg["n_in"] = 113
 cfg["n_out"] = 30
 
 cfg["n_game"] = 0

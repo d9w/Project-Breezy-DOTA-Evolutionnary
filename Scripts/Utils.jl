@@ -5,7 +5,7 @@ df = CSV.File("min_max_adj.csv") |> DataFrame!
 const MINS = Array{Float64}(df[!, :min])
 const MAXS = Array{Float64}(df[!, :adj_max])
 const DIFF = MAXS .- MINS
-const ON_INP = ~.(Bool.(df[!, :off]))
+const ON_INP = .~(Bool.(df[!, :off]))
 # we import the list of our features into a dict to map array indexes
 const FEATURES_MAP = JSON.parsefile("features_list2.json")
 const TIME_TO_KILL = Dict(300.0=>1, 500.0=>2, 700.0=>3)
@@ -27,7 +27,7 @@ function Fitness1(lastState::Array{Float64}{1}, nbKill::Int64, nbDeath::Int64, e
     towerHealth = lastState[FEATURES_MAP["bad tower health"]+1]
     maxTowerHealth = lastState[FEATURES_MAP["bad tower max health"]+1]
     ratioTower = (maxTowerHealth-towerHealth)/maxTowerHealth
-	  reward = max(100*lastHits + 100*denies + 2000*ratioTower + 1000*nbKill - 1000*earlyPenalty,
+	  reward = max(100*lastHits + 100*denies + 2000*ratioTower + 1000*nbKill - 1000*nbDeath - 1000*earlyPenalty,
                  0.0)
     return reward
 end
