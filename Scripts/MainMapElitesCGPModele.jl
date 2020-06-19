@@ -47,13 +47,19 @@ s = ArgParseSettings()
     "--simulator"
     help = "dota simulator path"
     default = "C:\\Users\\denni\\Documents\\GitHub\\Dota_Simulator"
+    "--python"
+    help = "use python"
+    action = :store_true
 end
 
 args = parse_args(ARGS, s)
 cfg = get_config(args["cfg"])
+cfg["python"] = args["python"]
 
-pushfirst!(PyVector(pyimport("sys")."path"), args["simulator"])
-include("../Scripts/Julia_interface.jl")
+if args["python"]
+  pushfirst!(PyVector(pyimport("sys")."path"), args["simulator"])
+  include("../Scripts/Julia_interface.jl")
+end
 
 # add to cfg the number of input(i.e nb of feature) and output
 cfg["n_in"] = 113

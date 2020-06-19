@@ -8,7 +8,7 @@ const DIFF = MAXS .- MINS
 const ON_INP = .~(Bool.(df[!, :off]))
 # we import the list of our features into a dict to map array indexes
 const FEATURES_MAP = JSON.parsefile("features_list2.json")
-const TIME_TO_KILL = Dict(300.0=>1, 500.0=>2, 700.0=>3)
+const TIME_TO_KILL = Dict(200.0=>2, 400.0=>4, 600.0=>6)
 
 """
 Helper functions to get the fitness whatever agent you are using.
@@ -27,8 +27,7 @@ function Fitness1(lastState::Array{Float64}{1}, nbKill::Int64, nbDeath::Int64, e
     towerHealth = lastState[FEATURES_MAP["bad tower health"]+1]
     maxTowerHealth = lastState[FEATURES_MAP["bad tower max health"]+1]
     ratioTower = (maxTowerHealth-towerHealth)/maxTowerHealth
-	  reward = max(100*lastHits + 100*denies + 2000*ratioTower + 1000*nbKill - 1000*nbDeath - 1000*earlyPenalty,
-                 0.0)
+	  reward = max(100*lastHits + 100*denies + 2000*ratioTower + 1000*nbKill - 1000*nbDeath, 0.0)
     return reward
 end
 
@@ -190,3 +189,25 @@ function intToTuple(int::Int64,grid_mesh::Int64)
 	y = 1 + rem(int,grid_mesh)
 	return (x,y)
 end
+
+"""
+using random values, sort individuals that are different
+"""
+function select_random(pop::Array{CGPInd}, elite::Int; n_in=113, n_sample=100)
+    actions = zeros(Int, length(pop))
+    dists = zeros(n_sample, length(pop))
+    inputs = rand(n_in, n_sample)
+
+    for i in 1:n_sample
+        for j in eachindex(pop)
+            actions[j] = argmax(process(pop[j], inputs[:, i]))
+        end
+        for j in eachindex(pop)
+            dists[i, j] = sum(actions[j] .!= actions)
+        end
+    end
+    d = sum(dists, dims=1)[:]
+    ds = sortperm(d)[1:elite]
+    pop[ds]
+end
+

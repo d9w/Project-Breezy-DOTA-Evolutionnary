@@ -218,7 +218,11 @@ function MapelitesDotaStep!(e::Evolution,
 
         # adapt so keep_top+nb_elite=n_population
         keep_top = e.cfg["n_population"] - e.cfg["n_elite"]
-        selected_ind = select_diverse(huge_new_pop,keep_top)
+        if e.cfg["python"]
+            selected_ind = select_diverse(huge_new_pop,keep_top)
+        else
+            selected_ind = select_random(huge_new_pop, keep_top)
+        end
         # we add them to the elites for next generation
         for ind in selected_ind
             push!(new_pop,ind)
