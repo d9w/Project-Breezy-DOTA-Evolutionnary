@@ -1,7 +1,3 @@
-cd("C:/Lucas_Hervier/Lucas_Hervier/Documents/Cours/3A/SFE/Dota_challenge/Project-Breezy-DOTA-Evolutionnary")
-"""
-Import necessary package
-"""
 using HTTP
 using Random
 using JSON
@@ -13,14 +9,11 @@ using Formatting
 using Dates
 using PyCall
 
-include("Scripts/Julia_interface.jl")
-include("MAPElites/src/MapElites.jl")
-include("Scripts/Utils.jl")
-include("Scripts/AgentMapElitesCGPModele.jl")
+include("../MAPElites/src/MapElites.jl")
+include("../Scripts/Utils.jl")
+include("../Scripts/AgentMapElitesCGPModele.jl")
 
-"""
-SETTINGS
-"""
+# SETTINGS
 s = ArgParseSettings()
 @add_arg_table! s begin
     "--breezyIp"
@@ -45,11 +38,20 @@ s = ArgParseSettings()
     "--cfg"
     help = "configuration script"
     default = "Config/MapElitesCGPAgent.yaml"
+    "--gen"
+    help = "load existing generation"
+    default = ""
+    "--map"
+    help = "load map"
+    default = ""
 end
-
 
 args = parse_args(ARGS, s)
 cfg = get_config(args["cfg"])
+
+path_to_dota_simulator = args["simulator"]
+pushfirst!(PyVector(pyimport("sys")."path"), path_to_Dota_Simulator)
+include("../Scripts/Julia_interface.jl")
 
 # add to cfg the number of input(i.e nb of feature) and output
 cfg["n_in"] = 310
@@ -110,9 +112,14 @@ mutation = i::CGPInd->goldman_mutate(cfg, i)
 MAIN LOOP
 """
 
-e = Cambrian.Evolution(CGPInd, cfg)
-ChangeId(e)
+e = Cambrian.Evolution(CGPInd, cfg; id = Dates.format(Dates.now(), "dd-mm-yyyy-HH-MM"))
+if args["gen"] != ""
+    LoadGen(e, args["gen"])
+end
 mapel = MAPElites.MapElites(featuresDim,gridMesh)
+if args["map"] != ""
+    LoadGen(e, args["map"])
+end
 MapelitesDotaRun!(e,mapel,MapIndToB;mutation=mutation,evaluate=EvaluateMapElites)
 
 best = sort(e.population)[end]

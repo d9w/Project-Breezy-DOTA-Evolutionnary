@@ -3,3 +3,7 @@ workspace.xml
 __pycache__*
 __pycache__
 .ipynb*
+
+logs/
+gens/
+map/

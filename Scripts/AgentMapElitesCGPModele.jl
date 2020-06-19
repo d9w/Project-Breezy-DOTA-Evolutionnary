@@ -30,7 +30,6 @@ ServerHandler used for handling the different service:
 - close the server when a game is over
 """
 function ServerHandler(request::HTTP.Request)
-
     global lastFeatures
     global oldLastFeatures
     global individual
@@ -44,14 +43,10 @@ function ServerHandler(request::HTTP.Request)
     global ratioDamageTowerOpp
 
     path = HTTP.URIs.splitpath(request.target)
-    println("Path is: $path")
     # path is either an array containing "update" or nothing so the following line means "if there is an update"
     if (size(path)[1] != 0)
-        """
-        Update route is called, game finished.
-        """
+        # Update route is called, game finished.
 
-        println("Game done.")
         cfg["n_game"] += 1
         content = GetContent(request)
         # println(content)
@@ -62,14 +57,10 @@ function ServerHandler(request::HTTP.Request)
             earlyPenalty = 1
         end
 
-        println("Fitness: $(Fitness1(lastFeatures,nbKill,nbDeath,earlyPenalty))")
         # now the game is over we can get the ratioDamageTowerOpp
         ratioDamageTowerOpp = GetTowerRatio(lastFeatures)
 
-        """
-        Since the Game is over we want to close the server
-        """
-
+        # Since the Game is over we want to close the server
         # closing the server generate an error, in order to keep the code running we use a try & catch
         try
             close(server)
@@ -78,11 +69,7 @@ function ServerHandler(request::HTTP.Request)
         end
 
     else
-        """
-        Relay route is called, gives features from the game for the agent.
-        """
-
-        println("Received features.")
+        # Relay route is called, gives features from the game for the agent.
         # get data as json, then save to list
         content = GetContent(request)
         # features = JSON.json(content)
@@ -95,28 +82,18 @@ function ServerHandler(request::HTTP.Request)
         totalDamageToOpp += EstimateDamage(oldLastFeatures,lastFeatures)
 
         if EarlyStop(lastFeatures)
-            """
-            EarlyStop will stopped the current game by calling the upgrade route
-            """
-
-            println("Early Stop.")
+            # EarlyStop will stopped the current game by calling the upgrade route
             # we send to the Breezy server to call the update route
             stopUrl = "http://$breezyIp:$breezyPort/run/active"
             response = HTTP.delete(stopUrl)
-            println(response)
-
         else
-            """
-            Agent code to determine action from features.
-            """
+            # Agent code to determine action from features.
             inputs = (lastFeatures .- MINS) ./ DIFF
             inputs = min.(max.(inputs, -1.0), 1.0)
             # julia array start at 1 but breezy server is python so you need the "-1"
             action = argmax(process(individual, inputs)) - 1
-            println("Action made: $action")
             PostResponse(Dict("actionCode"=>action))
         end
-
     end
 end
 
@@ -205,7 +182,8 @@ function MapelitesDotaStep!(e::Evolution,
                              crossover::Function=Cambrian.uniform_crossover,
                              evaluate::Function=Cambrian.random_evaluate)
 
-    # the MappingArray is at first empty and is filled when evaluate is called, it will be used to get MapElites coordinates
+    # the MappingArray is at first empty and is filled when evaluate is called,
+    # it will be used to get MapElites coordinates
     global MappingArray
 
     e.gen += 1
@@ -215,11 +193,9 @@ function MapelitesDotaStep!(e::Evolution,
             MAPElites.add_to_map(map_el,map_ind_to_b(MappingArray[i]),e.population[i],e.population[i].fitness)
         end
         MappingArray = []
-
     else
-
         new_pop = Array{Individual}(undef,0)
-        
+
         # elites stay in population
         if e.cfg["n_elite"] > 0
             sort!(e.population)
@@ -227,12 +203,10 @@ function MapelitesDotaStep!(e::Evolution,
                     e.population[(length(e.population)-e.cfg["n_elite"]+1):end])
         end
 
-        """
-        We are generating much more children than nb_population. It is in order to maximize population diversity
-        Indeed, with the help of the Dota_simulator, real evaluation is far too expensive, we simulate those 
-        children behavior and select the nb_population individuals which are the further from each other. Then
-        we evaluate, with the actual game, those individuals and add them to the map.
-        """
+        # We are generating much more children than nb_population. It is in order to maximize population diversity
+        # Indeed, with the help of the Dota_simulator, real evaluation is far too expensive, we simulate those
+        # children behavior and select the nb_population individuals which are the further from each other. Then
+        # we evaluate, with the actual game, those individuals and add them to the map.
         huge_new_pop = Array{Individual}(undef,0)
         # a big offsprings generation append here
         for i in 1:100
@@ -250,7 +224,7 @@ function MapelitesDotaStep!(e::Evolution,
 
             push!(huge_new_pop, child)
         end
-        
+
         # adapt so keep_top+nb_elite=n_population
         keep_top = e.cfg["n_population"] - e.cfg["n_elite"]
         selected_ind = select_diverse(huge_new_pop,keep_top)
@@ -297,8 +271,10 @@ end
 
 """
 This function make an Individual play a single game of DOTA2
-Once the game is finished it is adding behavior variables, used to get the individual coordinates in the behavor space,
-to the MappingArray.
+
+Once the game is finished it is adding behavior variables, used to get the
+individual coordinates in the behavor space, to the MappingArray.
+
 Return the fitness
 """
 function EvaluateMapElites(ind::Individual)

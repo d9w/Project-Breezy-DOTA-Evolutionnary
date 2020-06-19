@@ -1,6 +1,6 @@
 # we import the list of our features into a dict to map array indexes
 const FEATURES_MAP = JSON.parsefile("features_list2.json")
-const TIME_TO_KILL = Dict(300.0=>1)
+const TIME_TO_KILL = Dict(300.0=>1, 500.0=>2, 700.0=>3)
 
 """
 Helper functions to get the fitness whatever agent you are using.
@@ -11,15 +11,17 @@ function Fitness(lastState::Array{Float64}{1})
 	return gold
 end
 
-function Fitness1(lastState::Array{Float64}{1},nbKill::Int64,nbDeath::Int64,earlyPenalty::Int64)
-	netWorth = lastState[FEATURES_MAP["net worth"]+1]
-	lastHits = lastState[FEATURES_MAP["last hits"]+1]
-	denies = lastState[FEATURES_MAP["last hits"]+1]
-	towerHealth = lastState[FEATURES_MAP["bad tower health"]+1]
-	maxTowerHealth = lastState[FEATURES_MAP["bad tower max health"]+1]
-	ratioTower = (maxTowerHealth-towerHealth)/maxTowerHealth
-	reward = netWorth + 100*lastHits + 100*denies + 2000*ratioTower + 1000*nbKill - 250*nbDeath - 500*earlyPenalty
-	return reward
+function Fitness1(lastState::Array{Float64}{1}, nbKill::Int64, nbDeath::Int64, earlyPenalty::Int64)
+    netWorth = lastState[FEATURES_MAP["net worth"]+1]
+    level = lastState[FEATURES_MAP["level"]+1]
+    lastHits = lastState[FEATURES_MAP["last hits"]+1]
+    denies = lastState[FEATURES_MAP["denies"]+1]
+    towerHealth = lastState[FEATURES_MAP["bad tower health"]+1]
+    maxTowerHealth = lastState[FEATURES_MAP["bad tower max health"]+1]
+    ratioTower = (maxTowerHealth-towerHealth)/maxTowerHealth
+	  reward = max(100*lastHits + 100*denies + 2000*ratioTower + 1000*nbKill - 1000*earlyPenalty,
+                 0.0)
+    return reward
 end
 
 """

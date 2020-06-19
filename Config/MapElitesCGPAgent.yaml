@@ -2,15 +2,15 @@
 d_fitness: 1
 n_population: 10
 n_elite: 1
-n_gen: 10
-log_gen: 5
+n_gen: 10000
+log_gen: 1
 save_gen: 5
 m_rate: 0.1
 p_crossover: 0
-# MTCGP.jl settings
-rows: 2
-columns: 200
-recur: 0.3
+# CGP.jl settings
+rows: 1
+columns: 400
+recur: 0.5
 out_m_rate: 0.3
 functions:
   - f_add

@@ -2,19 +2,14 @@ using PyCall
 using Pkg
 using Cambrian
 using Distances
-println("\n\n\n")
 
 ## Import Simulator
-path_to_Dota_Simulator = "C:\\Lucas_Hervier\\Lucas_Hervier\\Documents\\Cours\\3A\\SFE\\Dota_challenge\\Dota_Simulator"
-pushfirst!(PyVector(pyimport("sys")."path"), path_to_Dota_Simulator)
-# pushfirst!(PyVector(pyimport("sys")."path"), "")
 dotasimlib = pyimport("DOTA_simulator")
 
 """
 This code is not of my belonging but is from the https://github.com/TemplierPaul/Dota_Simulator .
 It is just convenient to have it running from the Scripts folder
 """
-
 function train_sim(epochs=30, batch_size=256, limit_overfit=10, name::String ="julia_cpu_test")
     # import DOTA_simulator as dotasimlib
     sim = dotasimlib.DotaSim()
