@@ -9,7 +9,7 @@ m_rate: 0.1
 p_crossover: 0
 # CGP.jl settings
 rows: 1
-columns: 400
+columns: 300
 recur: 0.5
 out_m_rate: 0.3
 functions:

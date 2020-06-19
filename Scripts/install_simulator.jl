@@ -5,7 +5,7 @@ s = ArgParseSettings()
 @add_arg_table! s begin
     "--simulator"
     help = "dota simulator path"
-    default = "C:\\Users\\dennis\\Documents\\GitHub\\Dota_Simulator"
+    default = "C:\\Users\\denni\\Documents\\GitHub\\Dota_Simulator"
 end
 
 args = parse_args(ARGS, s)

@@ -44,6 +44,9 @@ s = ArgParseSettings()
     "--map"
     help = "load map"
     default = ""
+    "--simulator"
+    help = "dota simulator path"
+    default = "C:\\Users\\denni\\Documents\\GitHub\\Dota_Simulator"
 end
 
 args = parse_args(ARGS, s)

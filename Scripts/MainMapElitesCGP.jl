@@ -51,7 +51,7 @@ args = parse_args(ARGS, s)
 cfg = get_config(args["cfg"])
 
 # add to cfg the number of input(i.e nb of feature) and output
-cfg["n_in"] = 310
+cfg["n_in"] = 216
 cfg["n_out"] = 30
 
 cfg["n_game"] = 0

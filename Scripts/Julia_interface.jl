@@ -4,6 +4,7 @@ using Cambrian
 using Distances
 
 ## Import Simulator
+pushfirst!(PyVector(pyimport("sys")."path"), "C:\\Users\\denni\\Documents\\GitHub\\Dota_Simulator")
 dotasimlib = pyimport("DOTA_simulator")
 
 """
@@ -37,7 +38,8 @@ function run_steps(sim, indiv::Individual, n_steps=100, render=true)
     end
     actions::Array{Integer}=[]
     for i in 1:n_steps
-        a = argmax(process(indiv, state)) - 1 #action in (0, 29)
+        inputs = get_inputs(state)
+        a = argmax(process(indiv, inputs)) - 1 #action in (0, 29)
         actions = append!(actions, [a])
         state = sim.step(a)
         if render
