@@ -11,6 +11,7 @@ using PyCall
 
 include("../MAPElites/src/MapElites.jl")
 include("../Scripts/Utils.jl")
+include("../Scripts/surrogate.jl")
 include("../Scripts/AgentMapElitesCGPModele.jl")
 
 # SETTINGS
@@ -126,7 +127,8 @@ if args["gen"] != ""
 end
 mapel = MAPElites.MapElites(featuresDim,gridMesh)
 if args["map"] != ""
-    LoadGen(e, args["map"])
+    mapel = load_map(args["map"])
+    e.gen += 1
 end
 MapelitesDotaRun!(e,mapel,MapIndToB;mutation=mutation,evaluate=EvaluateMapElites)
 

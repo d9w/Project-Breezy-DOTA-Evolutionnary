@@ -8,7 +8,7 @@ const DIFF = MAXS .- MINS
 const ON_INP = .~(Bool.(df[!, :off]))
 # we import the list of our features into a dict to map array indexes
 const FEATURES_MAP = JSON.parsefile("features_list2.json")
-const TIME_TO_KILL = Dict(200.0=>2, 400.0=>4, 600.0=>6)
+const TIME_TO_KILL = Dict(400.0=>2, 600.0=>4, 800.0=>6)
 
 """
 Helper functions to get the fitness whatever agent you are using.
@@ -27,7 +27,7 @@ function Fitness1(lastState::Array{Float64}{1}, nbKill::Int64, nbDeath::Int64, e
     towerHealth = lastState[FEATURES_MAP["bad tower health"]+1]
     maxTowerHealth = lastState[FEATURES_MAP["bad tower max health"]+1]
     ratioTower = (maxTowerHealth-towerHealth)/maxTowerHealth
-	  reward = max(100*lastHits + 100*denies + 2000*ratioTower + 1000*nbKill - 1000*nbDeath, 0.0)
+	  reward = max(netWorth + 100*lastHits + 100*denies + 2000*ratioTower + 1000*nbKill - 1000*nbDeath, 0.0)
     return reward
 end
 
@@ -193,7 +193,7 @@ end
 """
 using random values, sort individuals that are different
 """
-function select_random(pop::Array{CGPInd}, elite::Int; n_in=113, n_sample=100)
+function select_random(pop::Array{Individual}, elite::Int; n_in=113, n_sample=100)
     actions = zeros(Int, length(pop))
     dists = zeros(n_sample, length(pop))
     inputs = rand(n_in, n_sample)
@@ -207,7 +207,7 @@ function select_random(pop::Array{CGPInd}, elite::Int; n_in=113, n_sample=100)
         end
     end
     d = sum(dists, dims=1)[:]
-    ds = sortperm(d)[1:elite]
+    ds = sortperm(d, rev=true)[1:elite]
     pop[ds]
 end
 

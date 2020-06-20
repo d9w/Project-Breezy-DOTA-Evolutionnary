@@ -4,7 +4,7 @@ n_population: 10
 n_elite: 1
 n_gen: 10000
 log_gen: 1
-save_gen: 5
+save_gen: 1
 m_rate: 0.1
 p_crossover: 0
 # CGP.jl settings

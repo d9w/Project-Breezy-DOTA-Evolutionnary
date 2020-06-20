@@ -56,6 +56,7 @@ function ServerHandler(request::HTTP.Request)
         # closing the server generate an error, in order to keep the code running we use a try & catch
         try
             close(server)
+            return HTTP.post(404,JSON.json(Dict("socket closed"=>"0")))
         catch e
             return HTTP.post(404,JSON.json(Dict("socket closed"=>"0")))
         end
@@ -82,7 +83,13 @@ function ServerHandler(request::HTTP.Request)
             # Agent code to determine action from features.
             # julia array start at 1 but breezy server is python so you need the "-1"
             inputs = get_inputs(lastFeatures)
-            action = argmax(process(individual, inputs)) - 1
+            outputs = process(individual, inputs)
+            action = argmax(outputs) - 1
+            onehot = 0:(length(outputs)-1) .== action
+            dat = [inputs; onehot; r]
+            data_file = open("episode_log.csv", append=true)
+            write(data_file, string(join(string.(dat), ","), "\r\n"))
+            close(data_file)
             PostResponse(Dict("actionCode"=>action))
         end
     end
@@ -132,7 +139,7 @@ function PlayDota(ind::CGPInd)
         HTTP.serve(ServerHandler,args["agentIp"],parse(Int64,args["agentPort"]);server=server)
     # when there is the error we know the game is over and we can return the fitness
     catch e
-        [Fitness1(lastFeatures,nbKill,nbDeath,earlyPenalty)]
+        return [Fitness1(lastFeatures,nbKill,nbDeath,earlyPenalty)]
     end
 end
 
@@ -187,45 +194,30 @@ function MapelitesDotaStep!(e::Evolution,
     else
         new_pop = Array{Individual}(undef,0)
 
-        # elites stay in population
-        if e.cfg["n_elite"] > 0
-            sort!(e.population)
-            append!(new_pop,
-                    e.population[(length(e.population)-e.cfg["n_elite"]+1):end])
-        end
-
-        # We are generating much more children than nb_population. It is in order to maximize population diversity
-        # Indeed, with the help of the Dota_simulator, real evaluation is far too expensive, we simulate those
-        # children behavior and select the nb_population individuals which are the further from each other. Then
-        # we evaluate, with the actual game, those individuals and add them to the map.
-        huge_new_pop = Array{Individual}(undef,0)
+        # surrogate fitness
+        pop = Array{Individual}(undef,0)
+        write_episode_logs()
+        models = train_surrogate_models()
+        inputs = get_surrogate_inputs()
         # a big offsprings generation append here
         for i in 1:100
             p1 = MAPElites.select_random(map_el)
-            child = deepcopy(p1)
-
-            if e.cfg["p_crossover"] > 0 && rand() < e.cfg["p_crossover"]
-                parents = vcat(p1, select_random(map_el))
-                child = crossover(parents...)
-            end
-
-            if e.cfg["m_rate"] > 0 && rand() < e.cfg["m_rate"]
-                child = mutation(child)
-            end
-
-            push!(huge_new_pop, child)
+            push!(pop, mutation(p1))
         end
 
-        # adapt so keep_top+nb_elite=n_population
-        keep_top = e.cfg["n_population"] - e.cfg["n_elite"]
-        if e.cfg["python"]
-            selected_ind = select_diverse(huge_new_pop,keep_top)
-        else
-            selected_ind = select_random(huge_new_pop, keep_top)
-        end
-        # we add them to the elites for next generation
-        for ind in selected_ind
-            push!(new_pop,ind)
+        for ngen in 1:10
+            next_gen = Array{Individual}(undef, 0)
+            for i in eachindex(pop)
+                pop[i].fitness[1] = simulate(pop[i], models, inputs)
+            end
+            sort!(pop)
+            push!(new_pop, deepcopy(pop[1]))
+            append!(next_gen, deepcopy(pop[1:10]))
+            for i in 11:100
+                ind = tournament_selection(pop)
+                push!(next_gen, ind)
+            end
+            pop = deepcopy(next_gen)
         end
 
         e.population = new_pop
