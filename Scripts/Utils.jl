@@ -8,7 +8,7 @@ const DIFF = MAXS .- MINS
 const ON_INP = .~(Bool.(df[!, :off]))
 # we import the list of our features into a dict to map array indexes
 const FEATURES_MAP = JSON.parsefile("features_list2.json")
-const TIME_TO_KILL = Dict(400.0=>2, 600.0=>4, 800.0=>6)
+const TIME_TO_KILL = Dict(200.0=>2, 500.0=>4, 700.0=>6)
 
 """
 Helper functions to get the fitness whatever agent you are using.
@@ -17,6 +17,16 @@ function Fitness(lastState::Array{Float64}{1})
 	# array index in Julia start at 1
 	gold = lastState[FEATURES_MAP["gold"]+1]
 	return gold
+end
+
+function get_rewards(lastState::Array{Float64}{1})
+    netWorth = lastState[FEATURES_MAP["net worth"]+1]
+    lastHits = lastState[FEATURES_MAP["last hits"]+1]
+    denies = lastState[FEATURES_MAP["denies"]+1]
+    towerHealth = lastState[FEATURES_MAP["bad tower health"]+1]
+    maxTowerHealth = lastState[FEATURES_MAP["bad tower max health"]+1]
+    ratioTower = (maxTowerHealth-towerHealth)/maxTowerHealth
+	[netWorth, lastHits, denies, ratioTower]
 end
 
 function Fitness1(lastState::Array{Float64}{1}, nbKill::Int64, nbDeath::Int64, earlyPenalty::Int64)
@@ -210,4 +220,3 @@ function select_random(pop::Array{Individual}, elite::Int; n_in=113, n_sample=10
     ds = sortperm(d, rev=true)[1:elite]
     pop[ds]
 end
-

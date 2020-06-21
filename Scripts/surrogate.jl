@@ -11,13 +11,14 @@ function get_data(log_file="all_episodes.csv")
 end
 
 function train_model(X::Array{Float64}, y::Array{Float64})
-    rf = RandomForestRegressor(n_trees=40)
+    rf = RandomForestRegressor(n_trees=60)
     fit!(rf, X, y)
     rf
 end
 
 """get prediction models for each output feature"""
 function train_surrogate_models()
+	println("train_surrogate_models")
     X, y = get_data()
     models = []
     for i in 1:size(y, 2)
@@ -29,13 +30,20 @@ end
 
 """append episode log to all episodes"""
 function write_episode_logs(episode_log="episode_log.csv", all_episodes="all_episodes.csv")
+	println("write_episode_logs")
     io_e = open(episode_log, read=true)
     io_all = open(all_episodes, append=true)
     write(io_all, read(io_e, String))
     close(io_all)
     close(io_e)
+end
+
+"""truncate episode log"""
+function clear_episode_log(episode_log="episode_log.csv", episode_base="episode_base.csv")
     io_e = open(episode_log, "w+")
-    write(io_e, "")
+	io_base = open(episode_base, read=true)
+    write(io_e, read(io_base, String))
+	close(io_base)
     close(io_e)
 end
 
@@ -45,7 +53,8 @@ function predict_reward(models, inputs::Array{Float64})
     last_hits = predict(models[2], inputs)
     denies = predict(models[3], inputs)
     ratio_tower = predict(models[4], inputs)
-	  net_worth + 100*last_hits + 100*denies + 2000*ratio_tower
+	#net_worth + 100*last_hits + 100*denies + 2000*ratio_tower
+	last_hits + denies
 end
 
 function get_surrogate_inputs(episode_log="episode_log.csv")

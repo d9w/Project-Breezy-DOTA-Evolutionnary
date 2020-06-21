@@ -82,6 +82,7 @@ function ServerHandler(request::HTTP.Request)
         else
             # Agent code to determine action from features.
             # julia array start at 1 but breezy server is python so you need the "-1"
+            r = get_rewards(lastFeatures)
             inputs = get_inputs(lastFeatures)
             outputs = process(individual, inputs)
             action = argmax(outputs) - 1
@@ -139,7 +140,14 @@ function PlayDota(ind::CGPInd)
         HTTP.serve(ServerHandler,args["agentIp"],parse(Int64,args["agentPort"]);server=server)
     # when there is the error we know the game is over and we can return the fitness
     catch e
+    end
+    try
+        close(server)
+    catch e
+    end
+    try
         return [Fitness1(lastFeatures,nbKill,nbDeath,earlyPenalty)]
+    catch e
     end
 end
 
@@ -192,40 +200,53 @@ function MapelitesDotaStep!(e::Evolution,
         end
         MappingArray = []
     else
-        new_pop = Array{Individual}(undef,0)
-
-        # surrogate fitness
-        pop = Array{Individual}(undef,0)
-        write_episode_logs()
+        expert = MAPElites.select_random(map_el)
+        expert.fitness[:] = evaluate(expert)[:]
+        e.population = [expert]
         models = train_surrogate_models()
         inputs = get_surrogate_inputs()
-        # a big offsprings generation append here
-        for i in 1:100
-            p1 = MAPElites.select_random(map_el)
-            push!(pop, mutation(p1))
-        end
 
-        for ngen in 1:10
-            next_gen = Array{Individual}(undef, 0)
-            for i in eachindex(pop)
-                pop[i].fitness[1] = simulate(pop[i], models, inputs)
+        for i in 2:e.cfg["n_population"]
+            # surrogate fitness
+            pop = Array{Individual}(undef,0)
+            for i in 1:100
+                p1 = MAPElites.select_random(map_el)
+                push!(pop, mutation(p1))
+            end
+            println("surrogate")
+            max_gens = 1
+            for ngen in 1:max_gens
+                next_gen = Array{Individual}(undef, 0)
+                sort!(pop)
+                for i in eachindex(pop)
+                    pop[i].fitness[1] = simulate(pop[i], models, inputs)
+                end
+                sort!(pop)
+                println("sim gen max fit ", pop[end].fitness[1], " min fit ", pop[1].fitness[1])
+                if ngen < max_gens
+                    push!(next_gen, CGPInd(e.cfg, pop[end].chromosome))
+                    append!(next_gen, [mutation(MAPElites.select_random(map_el)) for i in 1:10])
+                    for i in 1:100
+                        # tournament selection
+                        inds = shuffle!(collect(1:length(pop)))
+                        ind = sort(pop[inds[1:3]])[end]
+                        push!(next_gen, mutate(e.cfg, ind))
+                    end
+                    pop = copy(next_gen)
+                end
             end
             sort!(pop)
-            push!(new_pop, deepcopy(pop[1]))
-            append!(next_gen, deepcopy(pop[1:10]))
-            for i in 11:100
-                ind = tournament_selection(pop)
-                push!(next_gen, ind)
-            end
-            pop = deepcopy(next_gen)
+            new_ind = CGPInd(e.cfg, pop[end].chromosome)
+            push!(e.population, new_ind)
         end
 
-        e.population = new_pop
-        Cambrian.fitness_evaluate!(e;fitness=evaluate)
         # once invidual are evaluated we can add them to the Map
         for i in eachindex(e.population)
+            e.population[i].fitness[:] = evaluate(e.population[i])[:]
             MAPElites.add_to_map(map_el,map_ind_to_b(MappingArray[i]),e.population[i],e.population[i].fitness)
         end
+        write_episode_logs()
+        clear_episode_log()
 
         MappingArray = []
     end
