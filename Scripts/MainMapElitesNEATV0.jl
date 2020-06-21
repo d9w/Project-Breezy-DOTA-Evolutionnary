@@ -7,6 +7,7 @@ using Sockets
 using Formatting
 using Dates
 using PyCall
+using NEAT
 
 include("../MAPElites/src/MapElites.jl")
 include("../Scripts/Utils.jl")
