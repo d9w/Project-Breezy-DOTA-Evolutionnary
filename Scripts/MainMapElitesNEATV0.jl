@@ -1,25 +1,19 @@
-"""
-Import necessary package
-"""
-
-
 using HTTP
 using Random
 using JSON
-using NEAT
 using Cambrian
 using ArgParse
 using Sockets
 using Formatting
 using Dates
+using PyCall
+
 include("../MAPElites/src/MapElites.jl")
-include("Utils.jl")
-include("MapElitesNEATAgentv0.jl")
+include("../Scripts/Utils.jl")
+include("../Scripts/surrogate.jl")
+include("../Scripts/AgentMapElitesNEATModele.jl")
 
-
-"""
-SETTINGS
-"""
+# SETTINGS
 s = ArgParseSettings()
 @add_arg_table! s begin
     "--breezyIp"
@@ -44,14 +38,31 @@ s = ArgParseSettings()
     "--cfg"
     help = "configuration script"
     default = "Config/MapElitesNEATAgent.yaml"
+    "--gen"
+    help = "load existing generation"
+    default = ""
+    "--map"
+    help = "load map"
+    default = ""
+    "--simulator"
+    help = "dota simulator path"
+    default = "C:\\Users\\denni\\Documents\\GitHub\\Dota_Simulator"
+    "--python"
+    help = "use python"
+    action = :store_true
 end
-
 
 args = parse_args(ARGS, s)
 cfg = get_config(args["cfg"])
+cfg["python"] = args["python"]
+
+if args["python"]
+  pushfirst!(PyVector(pyimport("sys")."path"), args["simulator"])
+  include("../Scripts/Julia_interface.jl")
+end
 
 # add to cfg the number of input(i.e nb of feature) and output
-cfg["n_in"] = 310
+cfg["n_in"] = 113
 cfg["n_out"] = 30
 
 cfg["n_game"] = 0
@@ -85,8 +96,8 @@ agentIp = args["agentIp"]
 agentPort = args["agentPort"]
 startData = args["startData"]
 # to be able to evaluate the fitness
-lastFeatures = []
-oldLastFeatures = []
+lastFeatures = [0.0]
+oldLastFeatures = [0.0]
 # the server will be reinitialize when playing Dota
 server = "whatever"
 # the individual will be properly set when calling PlayDota(ind)
@@ -103,15 +114,21 @@ MappingArray = []
 featuresDim = cfg["features_dim"]
 gridMesh = cfg["grid_mesh"]
 # define the mutation
-mutation = i::NEATInd->NEAT.mutate(cfg, i)
+mutation = i::NEATInd->mutate(cfg, i)
 
 """
 MAIN LOOP
 """
 
-e = Cambrian.Evolution(NEATInd, cfg)
-ChangeId(e)
+e = Cambrian.Evolution(NEATInd, cfg; id = Dates.format(Dates.now(), "dd-mm-yyyy-HH-MM"))
+if args["gen"] != ""
+    LoadGen(e, args["gen"])
+end
 mapel = MAPElites.MapElites(featuresDim,gridMesh)
+if args["map"] != ""
+    mapel = load_map(args["map"])
+    e.gen += 1
+end
 MapelitesDotaRun!(e,mapel,MapIndToB;mutation=mutation,evaluate=EvaluateMapElites)
 
 best = sort(e.population)[end]
