@@ -1,19 +1,49 @@
 using CSV
 using DataFrames
-using DecisionTree
 using Cambrian
+using Flux
+using CUDAapi
+if has_cuda()
+    import CuArrays
+    CuArrays.allowscalar(false)
+end
 
 function get_data(log_file="all_episodes.csv")
     dat = CSV.File(log_file, header=false) |> DataFrame!
-    X = dat[1:(size(dat, 1)-1), 1:143]
-    y = dat[2:end, 144:147]
-    Array{Float64}(X), Array{Float64}(y)
+    X = Array{Float64}(dat[:, 1:143])
+    y = Array{Float64}(dat[:, 144:147])
+    dy = diff(y, dims=1)
+    dy[dy .< 0] .= 0.0
+    dy[:, 1] ./= 10
+    r = sum(dy, dims=2)
+    test = rand(size(X, 1)) .< 0.2
+    train_data = DataLoader(X[.~test, :]', r[.~test, :]', batchsize=batch, shuffle=true)
+    test_data = DataLoader(xtest, ytest, batchsize=batch)
+    train_data, test_data
 end
 
-function train_model(X::Array{Float64}, y::Array{Float64})
-    rf = RandomForestRegressor(n_trees=60)
-    fit!(rf, X, y)
-    rf
+function loss_all(dataloader, model)
+    l = 0f0
+    for (x,y) in dataloader
+        l += logitcrossentropy(model(x), y)
+    end
+    l/length(dataloader)
+end
+
+function train_model(;device=cpu, n_epochs=10)
+    m = Chain(Dense(size(X, 2), 128, relu),
+              Dense(128, 64, relu),
+              Dense(64, 32, relu),
+              Dense(32, 1, relu))
+    train_data, test_data = get_data()
+    train_data = device.(train_data)
+    test_data = device.(test_data)
+    m = device.(m)
+    loss(x, y) = Flux.mse(m(x), y)
+
+    evalcb = () -> @show(loss_all(train_data, m))
+    @epochs n_epochs Flux.train!(loss, params(m), train_data, ADAM(), cb=evalcb)
+    m
 end
 
 """get prediction models for each output feature"""
