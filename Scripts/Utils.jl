@@ -45,7 +45,7 @@ end
 transform features into inputs
 """
 function get_inputs(features::Array{Float64})
-    inputs = (lastFeatures .- MINS) ./ DIFF
+    inputs = (features .- MINS) ./ DIFF
     inputs = min.(max.(inputs, -1.0), 1.0)
     inputs[ON_INP]
 end

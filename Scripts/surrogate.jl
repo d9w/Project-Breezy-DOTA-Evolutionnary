@@ -12,19 +12,45 @@ if has_cuda()
     CuArrays.allowscalar(false)
 end
 
-function get_data(;log_file="all_episodes.csv", batch=1024)
+function get_data(;log_file="all_episodes.csv", lookahead=10)
     dat = CSV.File(log_file, header=false) |> DataFrame!
-    X = Array{Float64}(dat[1:size(dat, 1)-1, 1:143])
+    X = Array{Float64}(dat[:, 1:143])
     y = Array{Float64}(dat[:, 144:147])
+    y = hcat(y, X[:, [2, 26]])
     dy = diff(y, dims=1)
-    dy[dy .< 0] .= 0.0
     dy[:, 1] ./= 10
-    r = sum(dy, dims=2)
+    dy[:, 5] .*= 10
+    dy[:, 6] .*= -10
+    dt = diff(X[:, 46], dims=1)
+    start = dt .< 0.0
+    lookahead = 20
+    r = zeros(size(dy, 1), lookahead)
+    r[:, 1] = sum(dy, dims=2)
+    for i in 1:(size(dy, 1) - lookahead)
+        for j in 2:lookahead
+            if start[i+j]
+                break
+            end
+            r[i, j] = r[i+j, 1]
+        end
+    end
+    for i in 2:lookahead
+        r[:, i] .*= (1.0 - (i / lookahead))
+    end
+    r = sum(r, dims=2)
+    X = X[1:size(r, 1), :]
+    X = X[.~start, :]
+    r = r[.~start, :]
+    X, r
+end
+
+function get_data_loaders(X::Array{Float64}, y::Array{Float64}; batch=1024)
     test = rand(size(X, 1)) .< 0.2
-    train_data = DataLoader(X[.~test, :]', r[.~test, :]', batchsize=batch, shuffle=true)
-    test_data = DataLoader(X[test, :]', r[test, :]', batchsize=batch)
+    train_data = DataLoader(X[.~test, :]', y[.~test, :]', batchsize=batch, shuffle=true)
+    test_data = DataLoader(X[test, :]', y[test, :]', batchsize=batch)
     train_data, test_data
 end
+
 
 function loss_all(dataloader, model)
     l = 0f0
@@ -44,7 +70,8 @@ end
 
 function train_model(;device=cpu, n_epochs=10, save=false)
     m = build_model()
-    train_data, test_data = get_data()
+    X, y = get_data()
+    train_data, test_data = get_data_loaders(X, y)
     train_data = device.(train_data)
     test_data = device.(test_data)
     m = device(m)

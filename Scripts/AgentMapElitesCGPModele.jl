@@ -34,9 +34,9 @@ function ServerHandler(request::HTTP.Request)
     global totalDamageToOpp
     global ratioDamageTowerOpp
 
-    path = HTTP.URIs.splitpath(request.target)
+    # path = HTTP.URIs.splitpath(request.target)
     # path is either an array containing "update" or nothing so the following line means "if there is an update"
-    if (size(path)[1] != 0)
+    if occursin("update", request.target)
         # Update route is called, game finished.
 
         cfg["n_game"] += 1
@@ -57,6 +57,8 @@ function ServerHandler(request::HTTP.Request)
         try
             close(server)
         catch e
+            println("error closing server")
+            @show e
             return HTTP.post(404,JSON.json(Dict("socket closed"=>"0")))
         end
 
@@ -77,7 +79,7 @@ function ServerHandler(request::HTTP.Request)
             # EarlyStop will stopped the current game by calling the upgrade route
             # we send to the Breezy server to call the update route
             stopUrl = "http://$breezyIp:$breezyPort/run/active"
-            response = HTTP.delete(stopUrl)
+            return HTTP.delete(stopUrl)
         else
             # Agent code to determine action from features.
             # julia array start at 1 but breezy server is python so you need the "-1"
@@ -90,7 +92,7 @@ function ServerHandler(request::HTTP.Request)
             data_file = open("episode_log.csv", append=true)
             write(data_file, string(join(string.(dat), ","), "\r\n"))
             close(data_file)
-            PostResponse(Dict("actionCode"=>action))
+            return PostResponse(Dict("actionCode"=>action))
         end
     end
 end
@@ -139,6 +141,7 @@ function PlayDota(ind::CGPInd)
         HTTP.serve(ServerHandler,args["agentIp"],parse(Int64,args["agentPort"]);server=server)
     # when there is the error we know the game is over and we can return the fitness
     catch e
+        println("error serving")
         @show e
         return [Fitness1(lastFeatures,nbKill,nbDeath,earlyPenalty)]
     end
