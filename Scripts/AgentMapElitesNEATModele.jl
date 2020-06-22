@@ -56,7 +56,6 @@ function ServerHandler(request::HTTP.Request)
         # closing the server generate an error, in order to keep the code running we use a try & catch
         try
             close(server)
-            return HTTP.post(404,JSON.json(Dict("socket closed"=>"0")))
         catch e
             return HTTP.post(404,JSON.json(Dict("socket closed"=>"0")))
         end
@@ -74,7 +73,7 @@ function ServerHandler(request::HTTP.Request)
         # from here we can get the damage made between two state
         totalDamageToOpp += EstimateDamage(oldLastFeatures,lastFeatures)
 
-        if EarlyStop(lastFeatures)
+        if false#EarlyStop(lastFeatures)
             # EarlyStop will stopped the current game by calling the upgrade route
             # we send to the Breezy server to call the update route
             stopUrl = "http://$breezyIp:$breezyPort/run/active"
@@ -140,14 +139,8 @@ function PlayDota(ind::NEATInd)
         HTTP.serve(ServerHandler,args["agentIp"],parse(Int64,args["agentPort"]);server=server)
     # when there is the error we know the game is over and we can return the fitness
     catch e
-    end
-    try
-        close(server)
-    catch e
-    end
-    try
+        @show e
         return [Fitness1(lastFeatures,nbKill,nbDeath,earlyPenalty)]
-    catch e
     end
 end
 
@@ -191,6 +184,7 @@ function MapelitesDotaStep!(e::Evolution,
     # the MappingArray is at first empty and is filled when evaluate is called,
     # it will be used to get MapElites coordinates
     global MappingArray
+    model = get_model()
 
     e.gen += 1
     if (e.gen == 1)
@@ -200,26 +194,27 @@ function MapelitesDotaStep!(e::Evolution,
         end
         MappingArray = []
     else
+        append_episode_logs()
+        clear_episode_log()
         expert = MAPElites.select_random(map_el)
         expert.fitness[:] = evaluate(expert)[:]
         e.population = [expert]
-        models = train_surrogate_models()
-        inputs = get_surrogate_inputs()
 
         for i in 2:e.cfg["n_population"]
+            inputs = get_surrogate_inputs()
             # surrogate fitness
-            pop = Array{Individual}(undef,0)
+            pop = Array{Individual}(undef, 0)
             for i in 1:100
                 p1 = MAPElites.select_random(map_el)
                 push!(pop, mutation(p1))
             end
             println("surrogate")
-            max_gens = 1
+            max_gens = 10
             for ngen in 1:max_gens
                 next_gen = Array{Individual}(undef, 0)
                 sort!(pop)
                 for i in eachindex(pop)
-                    pop[i].fitness[1] = simulate(pop[i], models, inputs)
+                    pop[i].fitness[1] = simulate(pop[i], model, inputs)
                 end
                 sort!(pop)
                 println("sim gen max fit ", pop[end].fitness[1], " min fit ", pop[1].fitness[1])
@@ -232,21 +227,21 @@ function MapelitesDotaStep!(e::Evolution,
                         ind = sort(pop[inds[1:3]])[end]
                         push!(next_gen, mutate(e.cfg, ind))
                     end
-                    pop = copy(next_gen)
+                    pop = next_gen
                 end
             end
+            append_episode_logs()
+            clear_episode_log()
             sort!(pop)
             new_ind = NEATInd(pop[end])
+            new_ind.fitness[:] = evaluate(new_ind)[:]
             push!(e.population, new_ind)
         end
 
         # once invidual are evaluated we can add them to the Map
         for i in eachindex(e.population)
-            e.population[i].fitness[:] = evaluate(e.population[i])[:]
             MAPElites.add_to_map(map_el,map_ind_to_b(MappingArray[i]),e.population[i],e.population[i].fitness)
         end
-        write_episode_logs()
-        clear_episode_log()
 
         MappingArray = []
     end
