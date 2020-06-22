@@ -4,6 +4,7 @@ using Cambrian
 using Flux.Data: DataLoader
 using Flux: @epochs
 using CUDAapi
+using BSON: @save, @load
 if has_cuda()
     import CuArrays
     CuArrays.allowscalar(false)
@@ -32,15 +33,15 @@ function loss_all(dataloader, model)
 end
 
 function build_model()
-	Chain(Dense(143, 128, relu),
-		  Dense(128, 128, relu),
-		  Dense(128, 64, relu),
-		  Dense(64, 32, relu),
-		  Dense(32, 1, relu))
+    Chain(Dense(143, 128, relu),
+          Dense(128, 128, relu),
+          Dense(128, 64, relu),
+          Dense(64, 32, relu),
+          Dense(32, 1, relu))
 end
 
-function train_model(;device=cpu, n_epochs=10)
-	m = build_model()
+function train_model(;device=cpu, n_epochs=10, save=false)
+    m = build_model()
     train_data, test_data = get_data()
     train_data = device.(train_data)
     test_data = device.(test_data)
@@ -49,24 +50,21 @@ function train_model(;device=cpu, n_epochs=10)
 
     evalcb = () -> @show((loss_all(train_data, m), loss_all(test_data, m)))
     @epochs n_epochs Flux.train!(loss, params(m), train_data, ADAM(), cb=evalcb)
+    if save
+        @save "reward_model.bson" cpu(m)
+    end
     m
 end
 
-"""get prediction models for each output feature"""
-function train_surrogate_models()
-	println("train_surrogate_models")
-    X, y = get_data()
-    models = []
-    for i in 1:size(y, 2)
-        m = train_model(X, y[:, i])
-        push!(models, m)
-    end
-    models
+function get_model()
+    m = build_model()
+    @load "reward_model.bson" m
+    return m
 end
 
 """append episode log to all episodes"""
-function write_episode_logs(episode_log="episode_log.csv", all_episodes="all_episodes.csv")
-	println("write_episode_logs")
+function append_episode_logs(episode_log="episode_log.csv", all_episodes="all_episodes.csv")
+    println("write_episode_logs")
     io_e = open(episode_log, read=true)
     io_all = open(all_episodes, append=true)
     write(io_all, read(io_e, String))
@@ -75,22 +73,10 @@ function write_episode_logs(episode_log="episode_log.csv", all_episodes="all_epi
 end
 
 """truncate episode log"""
-function clear_episode_log(episode_log="episode_log.csv", episode_base="episode_base.csv")
+function clear_episode_log(episode_log="episode_log.csv")
     io_e = open(episode_log, "w+")
-	io_base = open(episode_base, read=true)
-    write(io_e, read(io_base, String))
-	close(io_base)
+    write(io_e, "")
     close(io_e)
-end
-
-"""reward based on net worth, last hits, denies, and tower damage predictions"""
-function predict_reward(models, inputs::Array{Float64})
-    net_worth = 0.1 * predict(models[1], inputs)
-    last_hits = predict(models[2], inputs)
-    denies = predict(models[3], inputs)
-    ratio_tower = predict(models[4], inputs)
-	#net_worth + 100*last_hits + 100*denies + 2000*ratio_tower
-	last_hits + denies
 end
 
 function get_surrogate_inputs(episode_log="episode_log.csv")
@@ -98,13 +84,23 @@ function get_surrogate_inputs(episode_log="episode_log.csv")
     Array{Float64}(Array{Float64}(dat[:, 1:113])')
 end
 
+"""use the model to estimate the reward for each action"""
+function get_all_actions(model, inputs::Array{Float64}; n_action=30)
+    rewards = zeros(Float32, n_actions)
+    for i in eachindex(rewards)
+        actions = 0:29 .== i
+        rewards[i] = model([inputs; actions])[1]
+    end
+    rewards
+end
+
 """returns the total reward of an individual based on logged states"""
-function simulate(ind::Individual, models, inputs::Array{Float64})
+function simulate(ind::Individual, model, inputs::Array{Float64})
     t_reward = 0.0
     for i in 1:size(inputs, 2)
         outputs = process(ind, inputs[:, i])
         onehot = eachindex(outputs) .== argmax(outputs)
-        reward = predict_reward(models, [inputs[:, 1]; onehot])
+        reward = model([inputs[:, 1]; onehot])[1]
         t_reward += reward
     end
     t_reward

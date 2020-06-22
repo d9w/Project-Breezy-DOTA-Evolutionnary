@@ -26,7 +26,7 @@ function get_rewards(lastState::Array{Float64}{1})
     towerHealth = lastState[FEATURES_MAP["bad tower health"]+1]
     maxTowerHealth = lastState[FEATURES_MAP["bad tower max health"]+1]
     ratioTower = (maxTowerHealth-towerHealth)/maxTowerHealth
-	[netWorth, lastHits, denies, ratioTower]
+    [netWorth, lastHits, denies, ratioTower]
 end
 
 function Fitness1(lastState::Array{Float64}{1}, nbKill::Int64, nbDeath::Int64, earlyPenalty::Int64)

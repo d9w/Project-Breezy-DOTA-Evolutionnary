@@ -115,7 +115,7 @@ MappingArray = []
 featuresDim = cfg["features_dim"]
 gridMesh = cfg["grid_mesh"]
 # define the mutation
-mutation = i::NEATInd->mutate(cfg, i)
+mutation = i::NEATInd->mutate(i, cfg)
 
 """
 MAIN LOOP
