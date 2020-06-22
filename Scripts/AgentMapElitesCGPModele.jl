@@ -194,6 +194,8 @@ function MapelitesDotaStep!(e::Evolution,
         end
         MappingArray = []
     else
+        append_episode_logs()
+        clear_episode_log()
         expert = MAPElites.select_random(map_el)
         expert.fitness[:] = evaluate(expert)[:]
         e.population = [expert]
@@ -228,18 +230,18 @@ function MapelitesDotaStep!(e::Evolution,
                     pop = next_gen
                 end
             end
+            append_episode_logs()
+            clear_episode_log()
             sort!(pop)
             new_ind = CGPInd(e.cfg, pop[end].chromosome)
+            new_ind.fitness[:] = evaluate(new_ind)[:]
             push!(e.population, new_ind)
         end
 
         # once invidual are evaluated we can add them to the Map
         for i in eachindex(e.population)
-            e.population[i].fitness[:] = evaluate(e.population[i])[:]
             MAPElites.add_to_map(map_el,map_ind_to_b(MappingArray[i]),e.population[i],e.population[i].fitness)
         end
-        write_episode_logs()
-        clear_episode_log()
 
         MappingArray = []
     end

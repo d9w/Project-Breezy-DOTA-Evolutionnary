@@ -1,12 +1,14 @@
 using CSV
 using DataFrames
 using Cambrian
+using Flux
 using Flux.Data: DataLoader
 using Flux: @epochs
 using CUDAapi
 using BSON: @save, @load
 if has_cuda()
     import CuArrays
+    using CUDAdrv
     CuArrays.allowscalar(false)
 end
 
@@ -51,20 +53,20 @@ function train_model(;device=cpu, n_epochs=10, save=false)
     evalcb = () -> @show((loss_all(train_data, m), loss_all(test_data, m)))
     @epochs n_epochs Flux.train!(loss, params(m), train_data, ADAM(), cb=evalcb)
     if save
-        @save "reward_model.bson" cpu(m)
+        m = cpu(m)
+        @save "reward_model.bson" m
     end
     m
 end
 
 function get_model()
-    m = build_model()
-    @load "reward_model.bson" m
-    return m
+    @load "reward_model_2.bson" cm2
+    cm2
 end
 
 """append episode log to all episodes"""
 function append_episode_logs(episode_log="episode_log.csv", all_episodes="all_episodes.csv")
-    println("write_episode_logs")
+    println("append_episode_logs")
     io_e = open(episode_log, read=true)
     io_all = open(all_episodes, append=true)
     write(io_all, read(io_e, String))
@@ -100,7 +102,7 @@ function simulate(ind::Individual, model, inputs::Array{Float64})
     for i in 1:size(inputs, 2)
         outputs = process(ind, inputs[:, i])
         onehot = eachindex(outputs) .== argmax(outputs)
-        reward = model([inputs[:, 1]; onehot])[1]
+        reward = model([inputs[:, i]; onehot])[1]
         t_reward += reward
     end
     t_reward
